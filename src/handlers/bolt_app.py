@@ -66,7 +66,7 @@ request_modal_view = {
                 "action_id": "input-element",
                 "initial_option": {
                     "value": "tool_A",
-                    "text": {"type": "plain_text", "text": "ツールA"},
+                    "text": {"type": "plain_text", "text": "tool_A"},
                 },
                 "options": [
                     {
