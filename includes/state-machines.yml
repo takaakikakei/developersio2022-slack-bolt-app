@@ -1,0 +1,16 @@
+stateMachines:
+  TemplateFunc:
+    name: TemplateFunc-${self:provider.stage}
+    definition:
+      StartAt: Hello
+      States:
+        Hello:
+          Type: Task
+          InputPath: '$'
+          Resource:
+            Fn::GetAtt: [hello, Arn]
+          ResultPath: '$'
+          Next: Done
+        Done:
+          Type: Pass
+          End: true
