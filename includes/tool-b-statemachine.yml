@@ -1,0 +1,11 @@
+name: Developersio2022-Slack-Bolt-App-ToolB-${self:provider.stage}
+definition:
+  StartAt: ToolA
+  States:
+    ToolA:
+      Type: Task
+      InputPath: '$'
+      Resource:
+        Fn::GetAtt: [tool_b, Arn]
+      ResultPath: '$'
+      End: true

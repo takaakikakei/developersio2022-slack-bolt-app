@@ -3,7 +3,7 @@ import json
 
 def handler(event, context):
     body = {
-        "message": "Your function executed successfully!",
+        "message": "This is tool_a. Your function executed successfully!",
         "input": event,
     }
 

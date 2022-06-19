@@ -27,11 +27,19 @@ functions:
       - httpApi:
           path: /
           method: POST
+  tool_a:
+    handler: src/handlers/tool_a.handler
+  tool_b:
+    handler: src/handlers/tool_b.handler
+
 plugins:
   - serverless-step-functions
   - serverless-python-requirements
   - serverless-prune-plugin
-#stepFunctions: ${file(includes/state-machines.yml)}
+stepFunctions:
+  stateMachines:
+    ToolA: ${file(includes/tool-a-statemachine.yml)}
+    ToolB: ${file(includes/tool-b-statemachine.yml)}
 custom:
   pythonRequirements:
     usePoetry: true
