@@ -54,12 +54,6 @@ request_modal_view = {
     "blocks": [
         {
             "type": "input",
-            "block_id": "aws-account-id-block",
-            "element": {"type": "plain_text_input", "action_id": "input-element"},
-            "label": {"type": "plain_text", "text": "AWSアカウントID"},
-        },
-        {
-            "type": "input",
             "block_id": "request-type-block",
             "element": {
                 "type": "radio_buttons",
@@ -83,6 +77,12 @@ request_modal_view = {
         },
         {
             "type": "input",
+            "block_id": "aws-account-id-block",
+            "element": {"type": "plain_text_input", "action_id": "input-element"},
+            "label": {"type": "plain_text", "text": "AWSアカウントID"},
+        },
+        {
+            "type": "input",
             "block_id": "notes-block",
             "element": {
                 "type": "plain_text_input",
@@ -103,66 +103,64 @@ def make_request_message(
     request_type: str,
     notes: str,
 ):
-    return (
-        [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": (
-                        f"To：<@{approver_user_id}>\n"
-                        f"From：<@{click_user_id}>\n"
-                        "下記ツールの実行承認をお願いします:bow:\n"
-                        "\n"
-                        "[申請内容]\n"
-                        f"• AWSアカウントID: {aws_account_id}\n"
-                        f"• ツール名: {request_type}\n"
-                        f"```{notes}```"
-                    ),
+    return [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"To：<@{approver_user_id}>\n"
+                    f"From：<@{click_user_id}>\n"
+                    "下記ツールの実行承認をお願いします:bow:\n"
+                    "\n"
+                    "[申請内容]\n"
+                    f"• ツール名: {request_type}\n"
+                    f"• AWSアカウントID: {aws_account_id}\n"
+                    f"```{notes}```"
+                ),
+            },
+        },
+        {
+            "type": "actions",
+            "block_id": "request-status-block",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Approve",
+                        "emoji": True,
+                    },
+                    "value": "approved",
+                    "style": "primary",
+                    "action_id": "approve_button_click",
                 },
-            },
-            {
-                "type": "actions",
-                "block_id": "request-status-block",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Approve",
-                            "emoji": True,
-                        },
-                        "value": "approved",
-                        "style": "primary",
-                        "action_id": "approve_button_click",
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Deny",
+                        "emoji": True,
                     },
-                    {
-                        "type": "button",
+                    "confirm": {
+                        "title": {"type": "plain_text", "text": "差戻確認"},
                         "text": {
+                            "type": "mrkdwn",
+                            "text": "この申請を本当に差戻しますか?\n差戻後は元に戻すことはできません。",
+                        },
+                        "confirm": {"type": "plain_text", "text": "Do it"},
+                        "deny": {
                             "type": "plain_text",
-                            "text": "Deny",
-                            "emoji": True,
+                            "text": "Cancel",
                         },
-                        "confirm": {
-                            "title": {"type": "plain_text", "text": "差戻確認"},
-                            "text": {
-                                "type": "mrkdwn",
-                                "text": "この申請を本当に差戻しますか?\n差戻後は元に戻すことはできません。",
-                            },
-                            "confirm": {"type": "plain_text", "text": "Do it"},
-                            "deny": {
-                                "type": "plain_text",
-                                "text": "Cancel",
-                            },
-                        },
-                        "value": "denied",
-                        "style": "danger",
-                        "action_id": "denied_button_click",
                     },
-                ],
-            },
-        ],
-    )
+                    "value": "denied",
+                    "style": "danger",
+                    "action_id": "denied_button_click",
+                },
+            ],
+        },
+    ]
 
 
 def respond_to_slack_within_3_seconds(ack):
@@ -170,6 +168,98 @@ def respond_to_slack_within_3_seconds(ack):
     Lazy listeners機能の使用時に、3秒以内にレスポンスを返す処理
     """
     ack()
+
+
+"""
+ホームタブのviewを表示
+"""
+
+
+@app.event("app_home_opened")
+def update_home_tab(client: WebClient, event: Dict):
+
+    try:
+        client.views_publish(user_id=event["user"], view=home_tab_view)
+    except Exception as e:
+        logger.error(f"Error publishing home tab:\n {e}")
+
+
+"""
+ホームタブのツール実行ブタンを押したときの処理
+Lazy listenersを利用
+"""
+
+
+def handle_open_modal_button_clicks(body: Dict, client: WebClient):
+    """
+    ツール実行申請ボタンを押したときの処理
+    """
+    client.views_open(trigger_id=body["trigger_id"], view=request_modal_view)
+
+
+app.action("request_button_click")(
+    ack=respond_to_slack_within_3_seconds,
+    lazy=[handle_open_modal_button_clicks],
+)
+
+"""
+モーダルの入力情報を取り出し
+"""
+
+
+@app.view("request_modal")
+def handle_request_modal_view_events(
+    ack: Ack, body: Dict, view: Dict, client: WebClient
+):
+    inputs = view["state"]["values"]
+    aws_account_id = (
+        inputs.get("aws-account-id-block", {}).get("input-element", {}).get("value")
+    )
+    request_type = (
+        inputs.get("request-type-block", {})
+        .get("input-element", {})
+        .get("selected_option", {})
+        .get("value")
+    )
+    notes = inputs.get("notes-block", {}).get("input-element", {}).get("value")
+
+    """
+    バリデーション
+    - aws_account_id は12桁数値からなる文字列のみ許可
+    """
+    pattern = "[0-9]{12}"
+    if not re.compile(pattern).match(aws_account_id):
+        ack(
+            response_action="errors",
+            errors={"aws-account-id-block": "12桁の数値を入力してください"},
+        )
+        return
+
+    """
+    メッセージ送信
+    """
+    if notes is None:
+        notes = "備考なし"
+    approver_user_id = os.environ["APPRPOVER_USER_ID"]
+    click_user_id = body["user"]["id"]
+    try:
+        client.chat_postMessage(
+            channel=os.environ["APPROVAL_REQUEST_CHANNEL_ID"],
+            blocks=make_request_message(
+                approver_user_id, click_user_id, aws_account_id, request_type, notes
+            ),
+        )
+    except Exception as e:
+        logger.exception(f"Failed to post a message {e}")
+
+    # 空の応答はこのモーダルを閉じる（ここまで 3 秒以内である必要あり）
+    ack()
+
+
+"""
+Approveボタンを押したときの処理
+Lazy listenersを利用
+"""
 
 
 def approve_request(body: Dict, respond: Respond, client: WebClient):
@@ -189,6 +279,18 @@ def approve_request(body: Dict, respond: Respond, client: WebClient):
     )
 
 
+app.action("approve_button_click")(
+    ack=respond_to_slack_within_3_seconds,
+    lazy=[approve_request],
+)
+
+
+"""
+Denyボタンを押したときの処理
+Lazy listenersを利用
+"""
+
+
 def denied_request(body: Dict, respond: Respond):
     click_user_id = body["user"]["id"]
 
@@ -206,91 +308,14 @@ def denied_request(body: Dict, respond: Respond):
     )
 
 
-@app.event("app_home_opened")
-def update_home_tab(client: WebClient, event: Dict):
-    """
-    ホームタブのviewを表示
-    """
-    try:
-        client.views_publish(user_id=event["user"], view=home_tab_view)
-    except Exception as e:
-        logger.error(f"Error publishing home tab:\n {e}")
-
-
-def handle_open_modal_button_clicks(body: Dict, client: WebClient):
-    """
-    ツール実行申請ボタンを押したときの処理
-    """
-    client.views_open(trigger_id=body["trigger_id"], view=request_modal_view)
-
-
-app.action("request_button_click")(
-    ack=respond_to_slack_within_3_seconds,
-    lazy=[handle_open_modal_button_clicks],
-)
-
-
-@app.view("request_modal")
-def handle_request_modal_view_events(
-    ack: Ack, body: Dict, view: Dict, client: WebClient
-):
-    """
-    モーダルの入力情報を取り出し
-    """
-    inputs = view["state"]["values"]
-    aws_account_id = (
-        inputs.get("aws-account-id-block", {}).get("input-element", {}).get("value")
-    )
-    request_type = (
-        inputs.get("request-type-block", {})
-        .get("input-element", {})
-        .get("selected_option", {})
-        .get("value")
-    )
-    notes = inputs.get("notes-block", {}).get("input-element", {}).get("value")
-
-    """
-    バリデーション
-    - aws_account_id は12桁の数値のみ許可
-    """
-    # todo:kakei 正規表現
-    # pattern = ""
-    # if re.compile(pattern).match(aws_account_id):
-    #    ack(
-    #        response_action="errors",
-    #        errors={"issue-url-block": "12桁の数値を入力してください"},
-    #    )
-    #    return
-
-    """
-    メッセージ送信
-    """
-    approver_user_id = os.environ["APPRPOVER_USER_ID"]
-    click_user_id = body["user"]["id"]
-    try:
-        client.chat_postMessage(
-            channel=os.environ["APPROVAL_REQUEST_CHANNEL_ID"],
-            blocks=make_request_message(
-                approver_user_id, click_user_id, aws_account_id, request_type, notes
-            ),
-        )
-    except Exception as e:
-        logger.exception(f"Failed to post a message {e}")
-
-    # 空の応答はこのモーダルを閉じる（ここまで 3 秒以内である必要あり）
-    ack()
-
-
-app.action("approve_button_click")(
-    ack=respond_to_slack_within_3_seconds,
-    lazy=[approve_request],
-)
-
-
 app.action("denied_button_click")(
     ack=respond_to_slack_within_3_seconds,
     lazy=[denied_request],
 )
+
+"""
+Slack Appのエントリポイント
+"""
 
 
 def handler(event, context):
