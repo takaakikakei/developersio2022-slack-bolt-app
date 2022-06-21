@@ -233,7 +233,8 @@ def handle_request_modal_view_events(
     バリデーション
     - aws_account_id は12桁数値からなる文字列のみ許可
     """
-    pattern = "[0-9]{12}"
+
+    pattern = "^[0-9]{12}$"
     if not re.compile(pattern).match(aws_account_id):
         ack(
             response_action="errors",
