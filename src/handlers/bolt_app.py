@@ -185,16 +185,22 @@ def update_home_tab(client: WebClient, event: Dict):
 
 
 """
-ホームタブのツール実行ブタンを押したときの処理
+ホームタブのツール実行ボタンを押したときの処理
 Lazy listenersを利用
 """
 
 
-def handle_open_modal_button_clicks(body: Dict, client: WebClient):
+def handle_open_modal_button_clicks(
+    body: Dict,
+    client: WebClient,
+):
     """
     ツール実行申請ボタンを押したときの処理
     """
-    client.views_open(trigger_id=body["trigger_id"], view=request_modal_view)
+    client.views_open(
+        trigger_id=body["trigger_id"],
+        view=request_modal_view,
+    )
 
 
 app.action("request_button_click")(
@@ -231,7 +237,9 @@ def handle_request_modal_view_events(
     if not re.compile(pattern).match(aws_account_id):
         ack(
             response_action="errors",
-            errors={"aws-account-id-block": "12桁の数値を入力してください"},
+            errors={
+                "aws-account-id-block": "12桁の数値を入力してください",
+            },
         )
         return
 
@@ -246,8 +254,13 @@ def handle_request_modal_view_events(
         client.chat_postMessage(
             channel=os.environ["APPROVAL_REQUEST_CHANNEL_ID"],
             blocks=make_request_message(
-                approver_user_id, click_user_id, aws_account_id, request_type, notes
+                approver_user_id,
+                click_user_id,
+                aws_account_id,
+                request_type,
+                notes,
             ),
+            text="ツール実行承認依頼",
         )
     except Exception as e:
         logger.exception(f"Failed to post a message {e}")
