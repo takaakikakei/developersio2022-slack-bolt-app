@@ -18,6 +18,12 @@ provider:
             - lambda:GetFunction
           Resource:
             - '*'
+        - Effect: Allow
+          Action:
+            - states:StartExecution
+          Resource:
+            - Fn::Sub: arn:aws:states:${self:provider.region}:${AWS::AccountId}:stateMachine:Developersio2022-Slack-Bolt-App-ToolA-${self:provider.stage}
+            - Fn::Sub: arn:aws:states:${self:provider.region}:${AWS::AccountId}:stateMachine:Developersio2022-Slack-Bolt-App-ToolB-${self:provider.stage}
   environment: ${self:custom.environment.${self:provider.stage}}
 functions:
   bolt_app:
@@ -53,6 +59,10 @@ custom:
       SLACK_BOT_SIGNING_SECRET: ${ssm(${self:provider.region}):/${self:service}/${self:provider.stage}/SLACK_BOT_SIGNING_SECRET}
       APPROVAL_REQUEST_CHANNEL_ID: ${ssm(${self:provider.region}):/${self:service}/${self:provider.stage}/APPROVAL_REQUEST_CHANNEL_ID}
       APPRPOVER_USER_ID: ${ssm(${self:provider.region}):/${self:service}/${self:provider.stage}/APPRPOVER_USER_ID}
+      TOOL_A_STATEMACHINE_ARN:
+        Fn::Sub: arn:aws:states:${self:provider.region}:${AWS::AccountId}:stateMachine:Developersio2022-Slack-Bolt-App-ToolA-${self:provider.stage}
+      TOOL_B_STATEMACHINE_ARN:
+        Fn::Sub: arn:aws:states:${self:provider.region}:${AWS::AccountId}:stateMachine:Developersio2022-Slack-Bolt-App-ToolB-${self:provider.stage}
     stg:
       STAGE: ${self:provider.stage}
       SLACK_SECRET: stg/slack

@@ -276,8 +276,24 @@ Lazy listenersを利用
 """
 
 
-def approve_request(body: Dict, respond: Respond, client: WebClient):
+def approve_request(body: Dict, respond: Respond):
     click_user_id = body["user"]["id"]
+
+    logger.info(f"body msg:\n{body}")
+
+    # todo:kakei どのツール化判別
+    try:
+        sfn_client = boto3.client("stepfunctions", region_name=os.environ["AWS_REGION"])
+        message = {}
+        extract_statemachine_arn = os.environ["TOOL_A_STATEMACHINE_ARN"]
+        res = sfn_client.start_execution(
+            stateMachineArn=extract_statemachine_arn, input=json.dumps(message)
+        )
+        executionArn = res["executionArn"]
+        logger.info(f"executionArn:\n {executionArn}")
+    except Exception as e:
+        logger.error(e)
+        return
 
     respond(
         blocks=[
