@@ -95,6 +95,22 @@ request_modal_view = {
     ],
 }
 
+approve_error_view = {
+    "type": "modal",
+    "callback_id": "approve_error_modal",
+    "title": {"type": "plain_text", "text": "承認エラー"},
+    "close": {"type": "plain_text", "text": "キャンセル"},
+    "blocks": [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": "承認エラーです。",
+            },
+        },
+    ],
+}
+
 
 def make_request_message(
     approver_user_id: str,
@@ -290,7 +306,16 @@ Lazy listenersを利用
 
 
 def approve_request(body: Dict, respond: Respond, client: WebClient):
+    # ボタン押下したユーザーが承認者のみ後続の処理に進む
     click_user_id = body["user"]["id"]
+    approver_users = [os.environ["APPRPOVER_USER_ID"]]
+    if not click_user_id in approver_users:
+        client.views_open(
+            trigger_id=body["trigger_id"],
+            view=approve_error_view,
+        )
+        logger.info(f"{click_user_id} is not approver")
+        return
 
     # 選択されたツール用のステートマシン実行
     selected_tool = body["message"]["blocks"][2]["fields"][0]["text"]
