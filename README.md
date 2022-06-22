@@ -62,7 +62,6 @@ $ npm install -g serverless
 
 - [AWS Vault で端末内の AWS アクセスキー平文保存をやめてみた](https://dev.classmethod.jp/articles/aws-vault/)
 
----
 
 ## 端末でのプロジェクトのセットアップ
 
@@ -73,7 +72,6 @@ $ npm ci # 必要なプラグインのインストール
 $ pipenv install # 必要なパッケージのインストール
 ```
 
----
 
 ## Slack App の準備
 
@@ -141,7 +139,6 @@ AWS Systems Manager のパラメータストアに保存しておきます。
 # /サービス名/ステージ名/SLACK_BOT_SIGNING_SECRET
 ```
 
----
 
 ## プロジェクトのデプロイ
 
@@ -161,7 +158,6 @@ sls deploy --stage dev --profile pte
 
 デプロイ完了すると、Amazon API Gateway のエンドポイントが表示されるのでメモしておきます。
 
----
 
 ## Slack App にエンドポイントを設定
 
@@ -181,13 +177,11 @@ sls deploy --stage dev --profile pte
   - message.channels
   - message.groups
 
----
 
 ## ワークスペース上でアプリの追加
 
 - Slack ワークスペースを開き、画面の左ペインの、`App` → `アプリの追加` から、対象のアプリをインストールします
 - メッセージを投稿するチャンネルにアプリを追加します
 
----
 
 これでセットアップ完了です。お疲れ様でした！
