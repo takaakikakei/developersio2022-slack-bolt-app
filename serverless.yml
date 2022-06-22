@@ -1,0 +1,76 @@
+service: developersio2022-slack-bolt-app
+frameworkVersion: '3'
+provider:
+  name: aws
+  runtime: python3.9
+  lambdaHashingVersion: 20201221
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, "ap-northeast-1"}
+  memorySize: 256
+  timeout: 30
+  iam:
+    role:
+      statements:
+        - Effect: 'Allow'
+          Action:
+            - ssm:GetParameter
+            - lambda:InvokeFunction
+            - lambda:GetFunction
+          Resource:
+            - '*'
+        - Effect: Allow
+          Action:
+            - states:StartExecution
+          Resource:
+            - Fn::Sub: arn:aws:states:${self:provider.region}:${AWS::AccountId}:stateMachine:Developersio2022-Slack-Bolt-App-ToolA-${self:provider.stage}
+            - Fn::Sub: arn:aws:states:${self:provider.region}:${AWS::AccountId}:stateMachine:Developersio2022-Slack-Bolt-App-ToolB-${self:provider.stage}
+  environment: ${self:custom.environment.${self:provider.stage}}
+functions:
+  bolt_app:
+    handler: src/handlers/bolt_app.handler
+    timeout: 29
+    events:
+      - httpApi:
+          path: /
+          method: POST
+  tool_a:
+    handler: src/handlers/tool_a.handler
+  tool_b:
+    handler: src/handlers/tool_b.handler
+
+plugins:
+  - serverless-step-functions
+  - serverless-python-requirements
+  - serverless-prune-plugin
+stepFunctions:
+  stateMachines:
+    ToolA: ${file(includes/tool-a-statemachine.yml)}
+    ToolB: ${file(includes/tool-b-statemachine.yml)}
+custom:
+  pythonRequirements:
+    usePoetry: true
+  prune:
+    automatic: true
+    number: 3
+  environment:
+    dev:
+      STAGE: ${self:provider.stage}
+      SLACK_BOT_TOKEN: ${ssm(${self:provider.region}):/${self:service}/${self:provider.stage}/SLACK_BOT_TOKEN}
+      SLACK_BOT_SIGNING_SECRET: ${ssm(${self:provider.region}):/${self:service}/${self:provider.stage}/SLACK_BOT_SIGNING_SECRET}
+      APPROVAL_REQUEST_CHANNEL_ID: ${ssm(${self:provider.region}):/${self:service}/${self:provider.stage}/APPROVAL_REQUEST_CHANNEL_ID}
+      APPRPOVER_USER_ID: ${ssm(${self:provider.region}):/${self:service}/${self:provider.stage}/APPRPOVER_USER_ID}
+      TOOL_A_STATEMACHINE_ARN:
+        Fn::Sub: arn:aws:states:${self:provider.region}:${AWS::AccountId}:stateMachine:Developersio2022-Slack-Bolt-App-ToolA-${self:provider.stage}
+      TOOL_B_STATEMACHINE_ARN:
+        Fn::Sub: arn:aws:states:${self:provider.region}:${AWS::AccountId}:stateMachine:Developersio2022-Slack-Bolt-App-ToolB-${self:provider.stage}
+    stg:
+      STAGE: ${self:provider.stage}
+      SLACK_SECRET: stg/slack
+    prod:
+      STAGE: ${self:provider.stage}
+      SLACK_SECRET: prod/slack
+package:
+  patterns:
+    - '!./**'
+    - ./src/**/*.py
+    - '!src/**/__pycache__/**'
