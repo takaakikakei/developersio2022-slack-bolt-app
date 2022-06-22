@@ -105,19 +105,32 @@ def make_request_message(
 ):
     return [
         {
+            "type": "header",
+            "text": {"type": "plain_text", "text": "ツール実行承認依頼"},
+        },
+        {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
                 "text": (
                     f"To：<@{approver_user_id}>\n"
                     f"From：<@{click_user_id}>\n"
-                    "下記ツールの実行承認をお願いします:bow:\n"
-                    "\n"
-                    "[申請内容]\n"
-                    f"• ツール名: {request_type}\n"
-                    f"• AWSアカウントID: {aws_account_id}\n"
-                    f"```{notes}```"
+                    "下記ツール実行の承認をお願いします:bow:"
                 ),
+            },
+        },
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*ツール名:*\n{request_type}"},
+                {"type": "mrkdwn", "text": f"*AWSアカウントID:*\n{aws_account_id}"},
+            ],
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (f"```{notes}```"),
             },
         },
         {
@@ -261,7 +274,7 @@ def handle_request_modal_view_events(
                 request_type,
                 notes,
             ),
-            text="ツール実行承認依頼",
+            text="ツール実行確認依頼",
         )
     except Exception as e:
         logger.exception(f"Failed to post a message {e}")
@@ -276,16 +289,22 @@ Lazy listenersを利用
 """
 
 
-def approve_request(body: Dict, respond: Respond):
+def approve_request(body: Dict, respond: Respond, client: WebClient):
     click_user_id = body["user"]["id"]
 
-    logger.info(f"body msg:\n{body}")
+    # 選択されたツール用のステートマシン実行
+    selected_tool = body["message"]["blocks"][2]["fields"][0]["text"]
+    if "tool_A" in selected_tool:
+        extract_statemachine_arn = os.environ["TOOL_A_STATEMACHINE_ARN"]
+    elif "tool_B" in selected_tool:
+        extract_statemachine_arn = os.environ["TOOL_B_STATEMACHINE_ARN"]
+    else:
+        logger.error(f"Unexpected tool is seleted:\n{selected_tool}")
+        return
 
-    # todo:kakei どのツール化判別
     try:
         sfn_client = boto3.client("stepfunctions", region_name=os.environ["AWS_REGION"])
         message = {}
-        extract_statemachine_arn = os.environ["TOOL_A_STATEMACHINE_ARN"]
         res = sfn_client.start_execution(
             stateMachineArn=extract_statemachine_arn, input=json.dumps(message)
         )
@@ -295,14 +314,18 @@ def approve_request(body: Dict, respond: Respond):
         logger.error(e)
         return
 
+    # 実行メッセージ送信
     respond(
         blocks=[
             body["message"]["blocks"][0],
+            body["message"]["blocks"][1],
+            body["message"]["blocks"][2],
+            body["message"]["blocks"][3],
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"<@{click_user_id}>さんが承認しました。",
+                    "text": f"<@{click_user_id}>さんが承認して実行しました。",
                 },
             },
         ]
@@ -327,6 +350,9 @@ def denied_request(body: Dict, respond: Respond):
     respond(
         blocks=[
             body["message"]["blocks"][0],
+            body["message"]["blocks"][1],
+            body["message"]["blocks"][2],
+            body["message"]["blocks"][3],
             {
                 "type": "section",
                 "text": {
