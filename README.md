@@ -13,6 +13,8 @@
 - メッセージ上のボタンから、AWS Step Functions のステートマシン起動
 - メッセージ上のボタンから元のメッセージを書き換え
 
+https://user-images.githubusercontent.com/57389790/175040490-a93864f4-05c9-4a14-a0e4-510dafef106d.mp4
+
 # セットアップ手順
 
 ## 事前準備
